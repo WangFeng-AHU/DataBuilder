@@ -27,30 +27,33 @@ import javax.lang.model.element.VariableElement;
 
 class BuilderGenerator {
 
-    static void generate(TypeElement typeElement, Filer filer) {
-        List<VariableElement> fields = getFieldsOf(typeElement);
-        if (fields.isEmpty()) {
+    static void generate(TypeElement dataTypeElement, Filer filer) {
+        List<VariableElement> dataFields = getFieldsOf(dataTypeElement);
+        if (dataFields.isEmpty()) {
             return;
         }
-        ClassName className = ClassName.get(typeElement);
-        ClassName builderClassName = ClassName.get(className.packageName(), className.simpleName() + "$$Builder");
-        List<FieldSpec> builderFields = new ArrayList<>();
-        List<MethodSpec> builderMethods = new ArrayList<>();
-        for (VariableElement field : fields) {
-            builderFields.add(generateBuilderField(field));
-            builderMethods.add(generateBuilderMethod(builderClassName, field));
+        ClassName dataClassName = ClassName.get(dataTypeElement);
+        ClassName dataBuilderClassName = ClassName.get(
+                dataClassName.packageName(),
+                dataClassName.simpleName() + "$$Builder");
+
+        List<FieldSpec> dataBuilderFields = new ArrayList<>();
+        List<MethodSpec> dataBuilderMethods = new ArrayList<>();
+        for (VariableElement field : dataFields) {
+            dataBuilderFields.add(generateDataBuilderField(field));
+            dataBuilderMethods.add(generateDataBuilderMethod(dataBuilderClassName, field));
         }
 
-        TypeSpec.Builder builderBuilder = TypeSpec.classBuilder(builderClassName);
-        builderBuilder.addModifiers(Modifier.PUBLIC, Modifier.FINAL);
-        for (FieldSpec builderField : builderFields) {
-            builderBuilder.addField(builderField);
+        TypeSpec.Builder dataBuilderBuilder = TypeSpec.classBuilder(dataBuilderClassName);
+        dataBuilderBuilder.addModifiers(Modifier.PUBLIC, Modifier.FINAL);
+        for (FieldSpec dataBuilderField : dataBuilderFields) {
+            dataBuilderBuilder.addField(dataBuilderField);
         }
-        for (MethodSpec builderMethod : builderMethods) {
-            builderBuilder.addMethod(builderMethod);
+        for (MethodSpec dataBuilderMethod : dataBuilderMethods) {
+            dataBuilderBuilder.addMethod(dataBuilderMethod);
         }
-        builderBuilder.addMethod(generateBuildMethod(className, fields));
-        JavaFile javaFile = JavaFile.builder(className.packageName(), builderBuilder.build()).build();
+        dataBuilderBuilder.addMethod(generateDataBuilderBuildMethod(dataClassName, dataFields));
+        JavaFile javaFile = JavaFile.builder(dataClassName.packageName(), dataBuilderBuilder.build()).build();
         try {
             javaFile.writeTo(filer);
         } catch (IOException e) {
@@ -78,23 +81,23 @@ class BuilderGenerator {
         return fields;
     }
 
-    private static FieldSpec generateBuilderField(VariableElement field) {
+    private static FieldSpec generateDataBuilderField(VariableElement field) {
         String fieldName = field.getSimpleName().toString();
         return FieldSpec.builder(TypeName.get(field.asType()), fieldName, Modifier.PRIVATE).build();
     }
 
-    private static MethodSpec generateBuilderMethod(ClassName builderClassName, VariableElement field) {
-        String fieldName = field.getSimpleName().toString();
-        return MethodSpec.methodBuilder(field.getSimpleName().toString())
+    private static MethodSpec generateDataBuilderMethod(ClassName builderClassName, VariableElement dataField) {
+        String fieldName = dataField.getSimpleName().toString();
+        return MethodSpec.methodBuilder(dataField.getSimpleName().toString())
                 .addModifiers(Modifier.PUBLIC)
                 .returns(builderClassName)
-                .addParameter(TypeName.get(field.asType()), fieldName)
+                .addParameter(TypeName.get(dataField.asType()), fieldName)
                 .addStatement("this.$L = $L", fieldName, fieldName)
                 .addStatement("return this")
                 .build();
     }
 
-    private static MethodSpec generateBuildMethod(ClassName className, List<VariableElement> fields) {
+    private static MethodSpec generateDataBuilderBuildMethod(ClassName className, List<VariableElement> fields) {
         MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder("build")
                 .addModifiers(Modifier.PUBLIC)
                 .returns(className)
